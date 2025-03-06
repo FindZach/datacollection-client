@@ -20,15 +20,14 @@
     </style>
 </head>
 <body>
-
-    <div id="formContainer"></div>
+    <div id="formContainer">Loading form...</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/uswds/3.4.1/js/uswds-init.min.js" integrity="sha512-O4/iaC7XNMEYqktWqYtH6Rg++++GZAdUMITJVzu0D1X4ckQyXHJOoC4SC4Ivwsr8YMTjhSnDxem0Ac62IQuG1w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <script>
-        // Wait for DOM and USWDS to be ready
         document.addEventListener('DOMContentLoaded', function () {
-            fetch('https://doddfrank.nojokehost.com/gov-form?appName=leaf', {
+            // Load the form from production URL
+            fetch('https://doddfrank.nojokehost.com/gov-form?appName=client1', {
                 mode: 'cors'
             })
             .then(response => {
@@ -39,14 +38,7 @@
             })
             .then(html => {
                 document.getElementById('formContainer').innerHTML = html;
-
                 initializeFormListeners();
-                // Optional: Attempt to initialize USWDS if available
-                if (typeof window.USWDS !== 'undefined' && typeof window.USWDS.initialize === 'function') {
-                    window.USWDS.initialize();
-                } else {
-                    console.warn('USWDS initialize function not available');
-                }
             })
             .catch(error => {
                 console.error('Error loading form:', error);
@@ -55,10 +47,56 @@
         });
 
         function initializeFormListeners() {
+            var form = document.getElementById("demographic-form");
             var ownersEl = document.querySelector("#owners-count");
             var declineEls = document.querySelectorAll("input.decline");
             var nonDeclineEls = document.querySelectorAll("input:not(.decline)");
             var radioEls = document.querySelectorAll(".usa-radio label");
+
+            // Handle form submission via AJAX
+            if (form) {
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault(); // Prevent default form submission
+
+                    const formData = new FormData(form);
+
+                    fetch('https://doddfrank.nojokehost.com/submit-form', {
+                        method: 'POST',
+                        body: formData,
+                        mode: 'cors'
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Form submission failed: ' + response.statusText);
+                        }
+                        return response.text();
+                    })
+                    .then(() => {
+                        // On success, fetch the thank-you page content from production URL
+                        fetch('https://doddfrank.nojokehost.com/thanks', {
+                            mode: 'cors'
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Failed to load thank-you page: ' + response.statusText);
+                            }
+                            return response.text();
+                        })
+                        .then(html => {
+                            // Inject the thank-you content into the form container
+                            document.getElementById('formContainer').innerHTML = html;
+                        })
+                        .catch(error => {
+                            console.error('Error loading thank-you page:', error);
+                            document.getElementById('formContainer').innerText = 'Error: ' + error.message;
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error submitting form:', error);
+                        document.getElementById('formContainer').innerText = 'Error submitting form: ' + error.message;
+                    });
+                });
+            }
 
             if (ownersEl) {
                 ownersEl.addEventListener("change", function (event) {
