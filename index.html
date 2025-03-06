@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Sample Demographic Form</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/uswds/3.4.1/css/uswds.min.css" integrity="sha512-nYgdbDiCeQ9s5EjMxfTPEr2jXvaWiH/U9IZ6vokGGS35xWxyGRVlyDTnk8XqrTFkWGCbWGEinaRB4dwCs8S7cQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        .usa-fieldset { margin-top: 2rem; }
+        .usa-legend--medium, .usa-label--medium { font-size: 1.2rem; font-weight: bold; }
+        .usa-prose .usa-collection__item { margin-top: 2.5rem; margin-bottom: 0; padding-top: 3rem; }
+        .usa-prose .usa-collection__item:first-child { border-top: 0; padding-top: 0; }
+        .usa-hint { color: black; font-style: italic; }
+        .usa-list { padding-left: 20px; }
+        .usa-list li { margin-bottom: 0; max-width: none; }
+        h3.usa-collection__heading { font-size: 1.4rem; }
+        .usa-input.margin-left-4 { width: calc(100% - 2rem); }
+        .grid-container, .usa-form { max-width: 46rem; }
+        .display-none { display: none !important; }
+    </style>
+</head>
+<body>
+    <div id="formContainer">Loading form...</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/uswds/3.4.1/js/uswds-init.min.js" integrity="sha512-O4/iaC7XNMEYqktWqYtH6Rg++++GZAdUMITJVzu0D1X4ckQyXHJOoC4SC4Ivwsr8YMTjhSnDxem0Ac62IQuG1w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script>
+        // Wait for DOM and USWDS to be ready
+        document.addEventListener('DOMContentLoaded', function () {
+            fetch('http://localhost:8080/gov-form?appName=client1', {
+                mode: 'cors'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.statusText);
+                }
+                return response.text();
+            })
+            .then(html => {
+                document.getElementById('formContainer').innerHTML = html;
+                // Safely initialize form listeners after injection
+                initializeFormListeners();
+                // Optional: Attempt to initialize USWDS if available
+                if (typeof window.USWDS !== 'undefined' && typeof window.USWDS.initialize === 'function') {
+                    window.USWDS.initialize();
+                } else {
+                    console.warn('USWDS initialize function not available');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading form:', error);
+                document.getElementById('formContainer').innerText = 'Failed to load form: ' + error.message;
+            });
+        });
+
+        function initializeFormListeners() {
+            var ownersEl = document.querySelector("#owners-count");
+            var declineEls = document.querySelectorAll("input.decline");
+            var nonDeclineEls = document.querySelectorAll("input:not(.decline)");
+            var radioEls = document.querySelectorAll(".usa-radio label");
+
+            if (ownersEl) {
+                ownersEl.addEventListener("change", function (event) {
+                    hideAllOwners();
+                    if (!event.target || !event.target.value) return;
+                    var numOwners = parseInt(event.target.value) + 1;
+                    while (--numOwners) {
+                        showOwner(numOwners);
+                        document.querySelector("#owner-demographics").classList.remove("display-none");
+                    }
+                });
+            }
+
+            declineEls.forEach(function (input) {
+                input.addEventListener("change", (event) => {
+                    if (event.target && event.target.value && event.target.checked) {
+                        clearSiblingInputs(event.target);
+                    }
+                });
+            });
+
+            nonDeclineEls.forEach(function (input) {
+                input.addEventListener("input", (event) => {
+                    if (event.target && event.target.value && event.target.value !== "") {
+                        clearSiblingDeclineInputs(event.target);
+                    }
+                });
+            });
+
+            radioEls.forEach(function (label) {
+                label.addEventListener("click", function (event) {
+                    var radio = event.target.getAttribute("for");
+                    radio = document.getElementById(radio);
+                    if (radio && radio.checked === true) {
+                        setTimeout(function () {
+                            radio.checked = false;
+                        }, 10);
+                    }
+                });
+            });
+        }
+
+        function hideAllOwners() {
+            document.querySelectorAll(".principal-owner").forEach(function (el) {
+                el.classList.add("display-none");
+            });
+            var ownerDemo = document.querySelector("#owner-demographics");
+            if (ownerDemo) ownerDemo.classList.add("display-none");
+        }
+
+        function showOwner(id) {
+            var ownerEl = document.querySelector("#principal-owner-" + id);
+            if (ownerEl) ownerEl.classList.remove("display-none");
+        }
+
+        function clearSiblingInputs(child) {
+            var container = child.closest("fieldset");
+            if (container) {
+                var inputs = container.querySelectorAll("input");
+                inputs.forEach(function (input) {
+                    if (input.type === "checkbox" && input !== child) {
+                        input.checked = false;
+                    }
+                    if (input.type === "text") {
+                        input.value = "";
+                    }
+                });
+            }
+        }
+
+        function clearSiblingDeclineInputs(child) {
+            var container = child.closest("fieldset");
+            if (container) {
+                var inputs = container.querySelectorAll("input.decline");
+                inputs.forEach(function (input) {
+                    input.checked = false;
+                });
+            }
+        }
+    </script>
+</body>
+</html>
